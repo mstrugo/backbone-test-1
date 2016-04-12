@@ -1,29 +1,102 @@
-var Libreria = Backbone.View.extend({
+var app = app || {};
 
-// llamar a elemento directo del dom
-el: '.vista',
+app.Libreria = Backbone.View.extend({
+	el: '#app',
 
-/* ----- Crear elemento
-  tagName: 'div',
-  className: 'vista',
-  id:'nombreId'
-  */
+	events: {
+		'click #crear': 'crearLibro'
+	},
 
-  initialize: function() {
-    //lo corro automatico para no llamar a .render();
-    this.render();
-  },
+	initialize: function() {
+		this.listenTo(app.libros, 'add', this.mostrarLibro);
+		this.listenTo(app.libros, 'remove', this.resetLibro);
+		app.libros.fetch();
+	},
 
-  render: function(){
-    this.$el.html('<p class="cambiarColor">dsadsagijpqrij 3eijofdaimo </p>');
-  },
+	mostrarLibro: function(modelo){
+		var vista = new app.MostrarLibroView({model: modelo});
+		$('.libros').append(vista.render().$el);
+	},
 
-  events:{
-    'click .cambiarColor': 'cambioColor'
-  },
+	crearLibro: function(){
+		app.libros.create({
+			"titulo": $('#inputTitulo').val(),
+			"autor": $('#inputAutor').val(),
+			"categoria": $('#inputCategoria').val()
+		});
+	},
 
-  cambioColor: function() {
-    this.$el.css('color','red');
-  }
+	resetLibro: function(){
+		this.$('.libros').html('');
+		app.libros.each(this.mostrarLibro, this);
+	}
+});
 
+app.MostrarLibroView = Backbone.View.extend({
+	template: _.template($('#tplMostrarLibro').html()),
+	tagName: 'li',
+	className: 'list-group-item',
+
+	events:{
+		'click #detalle': 'mostrarDetalle',
+		'click #eliminar': 'eliminarLibro'
+	},
+
+	initialize: function() {
+		var self = this;
+
+		app.route.on('route:book', function(){
+			self.render();
+		});
+		app.route.on('route:detalle', function(){
+			self.render();
+		});
+	},
+
+	render: function() {
+		var self = this;
+		if(window.stade === "libro"){
+			$('.detalle').hide();
+			$('#myModal').modal('hide');
+			this.$el.html( this.template( this.model.toJSON() ) );
+		}else if(window.stade === "detalle"){
+			$('.detalle').show();
+			if(this.model.get('id') === window.libroID){
+				new app.DetalleLibroView({model:this.model});
+			}
+		}
+		return this;
+	},
+
+	mostrarDetalle: function() {
+		Backbone.history.navigate('libros/' + this.model.get('id'), {trigger: true});
+	},
+
+	eliminarLibro: function(){
+		this.model.destroy();
+	}
+});
+
+
+app.DetalleLibroView = Backbone.View.extend({
+	el: '.detalle',
+	template: _.template($('#tplDetalleLibro').html()),
+
+	events: {
+		'click .atrasLibros': 'atrasLibros'
+	},
+
+	initialize: function() {
+		this.render();
+	},
+
+	render: function() {
+		this.$el.html(this.template(this.model.toJSON()));
+		$('#myModal').modal();
+	},
+
+	atrasLibros: function(){
+		Backbone.history.navigate('', {trigger: true});
+
+	}
 });
